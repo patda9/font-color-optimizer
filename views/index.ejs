@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Font Color Optimizer</title>
+
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+      integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+      integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+      integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body style="padding-top: 30vh;">
+    <div class="container">
+      <div class="row">
+        <div class="col-12">
+          <div class="input-group" style="width: 35%;">
+            <div class="input-group-prepend">
+              <span class="input-group-text" id="addon-wrapping">#</span>
+            </div>
+            <input
+              type="text"
+              class="form-control"
+              id="hexInput"
+              placeholder="Hex string"
+              aria-label="Color"
+              aria-describedby="addon-wrapping"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    function calculateColorLuminance(
+      hexString /* hexString: string */
+    ) /* returns: number */ {
+      const calculateChannelLuminance = (
+        sRgbChannelValue /* sRgbChannelValue: number */
+      ) /* returns: number */ => {
+        return sRgbChannelValue <= 0.03928
+          ? sRgbChannelValue / 12.92
+          : Math.pow((sRgbChannelValue + 0.055) / 1.055, 2.4);
+      };
+
+      const hexPattern = /(?:^#[a-fA-F0-9]{6}$)|^#[a-fA-F0-9]{3}$/g;
+      if (hexPattern.test(hexString)) {
+        let channels /* channels: string[] */ = [];
+        if (hexString.length === 4) {
+          const normalizedHexString = hexString.toLowerCase().replace("#", "");
+          channels = [...Array(3)].map((_, i) => {
+            const digit = normalizedHexString[i];
+
+            return `${digit}${digit}`;
+          });
+        } else if (hexString.length === 7) {
+          const normalizedHexString = hexString.toLowerCase().replace("#", "");
+          const tempChannel = normalizedHexString.match(/.{1,2}/g);
+
+          if (tempChannel) {
+            channels = tempChannel.map((_) => _);
+          }
+        } else {
+          return -1;
+        }
+
+        const rgb = {
+          r: parseInt(`0x${channels[0]}`),
+          g: parseInt(`0x${channels[1]}`),
+          b: parseInt(`0x${channels[2]}`),
+        };
+
+        const sRgb = {
+          r: rgb.r / 255,
+          g: rgb.g / 255,
+          b: rgb.b / 255,
+        };
+
+        const { R, G, B } = {
+          R: calculateChannelLuminance(sRgb.r),
+          G: calculateChannelLuminance(sRgb.g),
+          B: calculateChannelLuminance(sRgb.b),
+        };
+
+        return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+      }
+
+      return -1;
+    }
+
+    function calculateContrastRatio(
+      luminance1 /* luminance1: number */,
+      luminance2 /* luminance2: number */
+    ) /* returns: number */ {
+      return (luminance1 + 0.05) / (luminance2 + 0.05);
+    }
+
+    const defaultDarkColor = "#101010";
+    const defaultLightColor = "#f0f0f0";
+
+    $("#hexInput").on("input", function () {
+      const hexPattern = /(?:^[a-fA-F0-9]{6}$)|^[a-fA-F0-9]{3}$/g;
+      const hexString = $(this).val();
+
+      const exampleBackground = $("#exampleBackground");
+      const setDefaultBackgroundColor = () =>
+        $(this).css({
+          "background-color": "#fff",
+          color: defaultDarkColor,
+        });
+
+      if (hexString && hexString.length !== 0) {
+        if (hexPattern.test(hexString)) {
+          const normalizedHexString = hexString.toLowerCase();
+          $(this).css({
+            "background-color": `#${normalizedHexString}`,
+          });
+
+          const backgroundLuminance = calculateColorLuminance(
+            `#${normalizedHexString}`
+          );
+          const darkColorLuminance = calculateColorLuminance(defaultDarkColor);
+          const lightColorLuminance = calculateColorLuminance(
+            defaultLightColor
+          );
+          const darkColorContrastRatio = calculateContrastRatio(
+            backgroundLuminance,
+            darkColorLuminance
+          );
+          const lightColorContrastRatio = calculateContrastRatio(
+            lightColorLuminance,
+            backgroundLuminance
+          );
+
+          $(this).css({
+            color:
+              darkColorContrastRatio > lightColorContrastRatio
+                ? defaultDarkColor
+                : defaultLightColor,
+          });
+        } else {
+          setDefaultBackgroundColor();
+        }
+      } else {
+        setDefaultBackgroundColor();
+      }
+    });
+  </script>
+</html>
